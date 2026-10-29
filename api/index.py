@@ -36,7 +36,14 @@ WRITER_EFFORT = os.environ.get("LEPI_WRITER_EFFORT", "medium")
 
 # 검사 방식. enforce = 지우기·다듬기·재작성·대체까지 적용. report = 검사는 모두 돌리되
 # Writer 글을 그대로 내보내고 '했을 일'만 stats·로그에 남긴다(사용자 결정: 생성 먼저, 삭제는 나중).
-CHECK_MODE = os.environ.get("LEPI_CHECK_MODE", "report")
+# light = report에 더해, 메모 어디에도 없는 판매 사실(숫자·금액·기간·서비스·효능·실적·재료·원산지)과
+# 원가·주운 물건 이야기가 든 문장만 지운다. 재작성은 하지 않는다(사용자 결정 2026-10-29: 아주 약하게).
+CHECK_MODE = os.environ.get("LEPI_CHECK_MODE", "light")
+LIGHT_CODES = {
+    "NUMBER", "PERIOD", "SERVICE", "EXCLUSIVE", "EFFICACY", "SOCIAL",
+    "MATERIAL", "ORIGIN", "SHOP_INVENT"
+}
+LIGHT_FOUND = re.compile(r"주워|주운|주웠")
 
 # 안전 분류기가 요청을 거절하면 서버가 알맞은 다른 모델로 다시 돌린다.
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
@@ -1616,6 +1623,47 @@ def _report_only(story, analysis, checked, stats):
     }
 
 
+def _light_check(story, analysis, memo, stats):
+    """light 모드: 메모 어디에도 없는 판매 사실과 원가·주운 물건 이야기가 든 문장만 뺀다.
+
+    근거는 문장이 단 fact가 아니라 메모 전체로 넓게 본다. 감성·장면 문장은 건드리지 않는다.
+    """
+    facts = analysis.get("facts") or []
+    cited = [_N(f.get("quote")) for f in facts] + memo["n"]
+    scenes = [_N(f.get("quote")) for f in facts if f.get("kind") == "seller_scene"]
+
+    def hits(text, is_info=False):
+        found = [code for code, _ in check_banned(text, cited, memo, scenes) if code in LIGHT_CODES]
+        if is_info:
+            # 실무 정보 줄에는 금액이 들어가야 하므로 지어낸 숫자만 본다.
+            return [code for code in found if code == "NUMBER"]
+        if MONEY.search(text):
+            found.append("MONEY")
+        if COST_LOW.search(text) or LIGHT_FOUND.search(text):
+            found.append("COST_LOW")
+        return found
+
+    removed = {}
+    kept = []
+    for sentence in story.get("sentences") or []:
+        if not isinstance(sentence, dict):
+            continue
+        codes = hits(_O(sentence.get("text")), sentence.get("role") == "info")
+        if codes:
+            removed[codes[0]] = removed.get(codes[0], 0) + 1
+            continue
+        kept.append(sentence)
+    story = dict(story, sentences=kept)
+
+    headline = _O(story.get("headline"))
+    if headline and hits(headline):
+        # 제목이 걸리면 상품명으로 바꾼다.
+        story["headline"] = (analysis.get("product") or {}).get("name") or headline
+        removed["HEADLINE"] = 1
+    stats["light_deleted"] = removed
+    return story
+
+
 def _run_engine(client, raw_input, scenario_mode, seller_additions, deadline, stats):
     memo = _memo_context(raw_input, seller_additions, scenario_mode)
     analysis = call_structured(
@@ -1655,6 +1703,8 @@ def _run_engine(client, raw_input, scenario_mode, seller_additions, deadline, st
 
     if CHECK_MODE == "report":
         return _report_only(story, analysis, checked, stats)
+    if CHECK_MODE == "light":
+        return _report_only(_light_check(story, analysis, memo, stats), analysis, checked, stats)
 
     codes = needs_rewrite(checked)
     if codes:

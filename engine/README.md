@@ -39,7 +39,7 @@ Analyzer → 코드: analysis 정리
 
 - 모델은 `LEPI_ANALYZER_MODEL`(기본 `claude-sonnet-5-5`)과 `LEPI_WRITER_MODEL`(기본 `claude-opus-5-5`)로 단계별로 정한다. `LEPI_MODEL`을 주면 두 단계 모두 그 모델을 쓴다(비교 테스트용).
 - effort는 `LEPI_ANALYZER_EFFORT`·`LEPI_WRITER_EFFORT`(기본 analyzer low, writer medium)로 늘 명시한다(모델마다 기본값이 다르다).
-- 검사 방식 `LEPI_CHECK_MODE`: `report`(기본, 검사만 하고 Writer 글을 그대로 내보내며 했을 삭제·재작성을 `lepi_run`의 `would`에 기록) / `enforce`(삭제·다듬기·재작성·대체 적용).
+- 검사 방식 `LEPI_CHECK_MODE`: `light`(기본. Writer 글을 그대로 쓰되, 메모 어디에도 없는 판매 사실(숫자·금액·기간·서비스·효능·실적·재료·원산지)과 원가·주운 물건 이야기가 든 문장만 지우고, 그런 제목은 상품명으로 바꾼다. 재작성 없음) / `report`(검사만 하고 했을 일을 `lepi_run`의 `would`에 기록) / `enforce`(삭제·다듬기·재작성·대체 적용).
 - 이야기 문장에는 금액을 쓰지 않고, 가격·기간·구매 방법은 마지막 문단 실무 정보 한 줄(role info)로 둔다. 구조화 출력(`output_config.format`), 시스템 프롬프트 캐시, 서버 쪽 fallback 베타를 쓴다.
 - 요청 시작부터 42초 마감(`LEPI_DEADLINE_S`). 호출마다 `timeout=min(25초, 남은 시간)`(`LEPI_CALL_TIMEOUT_S`; run_tests는 120초·60초로 늘리고 운영 기준 초과 여부만 센다), `max_retries=0`, `max_tokens=6000`. LLM 호출은 최대 3회.
 - 원가는 `python engine/run_tests.py --model ...`의 마지막 줄에 나온다(1달러 1400원, Opus $4/$20, Sonnet $2/$10 per MTok).
