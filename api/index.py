@@ -44,6 +44,8 @@ LIGHT_CODES = {
     "MATERIAL", "ORIGIN", "SHOP_INVENT"
 }
 LIGHT_FOUND = re.compile(r"주워|주운|주웠")
+# 제목에는 실패·불량으로 읽히는 말을 쓰지 않는다(사용자 결정 2026-10-29). 본문의 반전 이야기는 둔다.
+HEADLINE_NEGATIVE = re.compile(r"망했|망친|망쳤|망한|실패|불량|하자가|하자 있|잘못 나온|흠집")
 
 # 안전 분류기가 요청을 거절하면 서버가 알맞은 다른 모델로 다시 돌린다.
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
@@ -1656,7 +1658,7 @@ def _light_check(story, analysis, memo, stats):
     story = dict(story, sentences=kept)
 
     headline = _O(story.get("headline"))
-    if headline and hits(headline):
+    if headline and (hits(headline) or HEADLINE_NEGATIVE.search(headline)):
         # 제목이 걸리면 상품명으로 바꾼다.
         story["headline"] = (analysis.get("product") or {}).get("name") or headline
         removed["HEADLINE"] = 1
