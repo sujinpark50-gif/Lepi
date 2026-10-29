@@ -31,3 +31,4 @@ npm run build            # vite build && ait build → lepi.ait
 - 실패하면 자동으로 다시 부르지 않아요. 45초가 지나면 끊어요.
 - 권한은 결과 복사용 클립보드 쓰기만 써요.
 - 서버 CORS는 `https://lepi.apps.tossmini.com`, `https://lepi.private-apps.tossmini.com`만 허용해요(`api/index.py`).
+- 로고: `brand/logo-600.png`(600×600, 콘솔 업로드용). 랜딩페이지의 새싹 달린 "lepi." 로고를 색 버전으로 그린 것이고, 원본은 `brand/logo.html`(Chrome 헤드리스로 600×600 스크린샷)이에요.
