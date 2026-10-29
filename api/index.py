@@ -1763,7 +1763,29 @@ def _run_engine(client, raw_input, scenario_mode, seller_additions, deadline, st
     return result
 
 
+# 앱인토스 미니앱(appName lepi)은 토스 도메인에서 이 API를 부른다. 그 출처만 허용한다.
+ALLOWED_ORIGINS = {
+    "https://lepi.apps.tossmini.com",
+    "https://lepi.private-apps.tossmini.com"
+}
+
+
 class handler(BaseHTTPRequestHandler):
+    def send_cors_headers(self):
+        origin = self.headers.get("Origin")
+        if origin in ALLOWED_ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Max-Age", "600")
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_cors_headers()
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def do_POST(self):
         try:
             content_length = int(
@@ -1865,6 +1887,7 @@ class handler(BaseHTTPRequestHandler):
             "Content-Length",
             str(len(response_body))
         )
+        self.send_cors_headers()
 
         self.end_headers()
         self.wfile.write(response_body)
